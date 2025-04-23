@@ -5,7 +5,7 @@
                 <el-input placeholder="请输入角色名称..." v-model="queryForm.query" clearable></el-input>
             </el-col>
             <el-button type="primary" :icon="Search" @click="initRoleList">搜索</el-button>
-            <el-button type="success" :icon="DocumentAdd" @click="handleDialogValue()">添加角色</el-button>
+            <el-button type="success" :icon="DocumentAdd" @click="openDialog('add')">添加角色</el-button>
             <el-popconfirm title="您确定批量删除这些记录吗？" @confirm="handleDelete(null)">
                 <template #reference>
                     <el-button type="danger" :disabled="selectedRoleIds.length === 0" :icon="Delete">批量删除</el-button>
@@ -37,7 +37,7 @@
                                 @click="handleMenuDialogValue(scope.row.id)">分配权限</el-button>
 
                             <el-button v-if="scope.row.code != 'admin'" type="primary" :icon="Edit"
-                                @click="handleDialogValue(scope.row.id)" />
+                                @click="openDialog('edit', scope.row)" />
 
                             <el-popconfirm v-if="scope.row.code != 'admin'" title="您确定要删除这条记录吗？"
                                 @confirm="handleDeleteRole(scope.row.id)">
@@ -58,12 +58,10 @@
             </div>
         </div>
 
-
-
-        <Dialog :visible="addOrEditDialogVisible" :is-edit="isEdit" :model-value="currentFormData"
-            @update:visible="addOrEditDialogVisible = $event" @confirm="handleFormConfirm" />
-
-        <MenuDialog ref="menuDialog" />
+        <BaseDialog :visible="dialogVisible" :title="currentDialogTitle" :form-items="ROLE_CONFIG.formItems"
+            :rules="ROLE_CONFIG.rules" :initial-data="currentFormData" @update:visible="val => dialogVisible = val"
+            @confirm="handleFormConfirm" />
+        <MenuDialog ref="menuDialog" @menu-updated="handleMenuUpdated" />
 
     </div>
 </template>
@@ -73,9 +71,9 @@ import { ref, onMounted, provide } from 'vue';
 import requestUtil from '@/utils/request';
 import { ElMessage } from 'element-plus';
 import { Search, Delete, DocumentAdd, Edit, Tools } from '@element-plus/icons-vue'
-import Dialog from './components/dialog.vue';
 import MenuDialog from './components/menuDialog'
-
+import BaseDialog from '@/components/dialog/BaseDialog.vue'
+import { ROLE_CONFIG } from '@/config/dialogConfig'
 
 const tableData = ref([]); // 角色列表数据
 const total = ref(0); // 总条数
@@ -84,6 +82,7 @@ const queryForm = ref({
     pageNum: 1,
     pageSize: 10,
 });
+
 
 // 处理分页大小变化
 const handleSizeChange = (pageSize) => {
@@ -205,60 +204,55 @@ const handleDelete = async () => {
 };
 
 
-const addOrEditDialogVisible = ref(false)
-const isEdit = ref(false)
+// 对话框状态
+const dialogVisible = ref(false)
+const currentDialogTitle = ref('')
 const currentFormData = ref({})
+const isEdit = ref(false)
 
-// 打开添加/编辑对话框
-const handleDialogValue = (roleId) => {
-    if (roleId) {
-        // 编辑模式
-        const role = tableData.value.find(item => item.id === roleId);
-        currentFormData.value = { ...role };
-        isEdit.value = true;
-    } else {
-        // 添加模式
-        currentFormData.value = {
-            name: '',
-            code: '',
-            remark: ''
-        };
-        isEdit.value = false;
+// 打开对话框方法
+const openDialog = (type, row) => {
+  isEdit.value = type === 'edit'
+  currentDialogTitle.value = isEdit.value ? '编辑角色' : '添加角色'
+  currentFormData.value = isEdit.value ? 
+    { ...row } : 
+    {
+      name: '',
+      code: '',
+      remark: ''
     }
-    addOrEditDialogVisible.value = true;
-};
+  dialogVisible.value = true
+}
 
 // 表单提交处理
 const handleFormConfirm = async (formData) => {
-    try {
-        if (!formData.remark) {
-            formData.remark = null; // 设置为 null
-        }
-        let res;
-        if (isEdit.value) {
-            res = await requestUtil.put(`role/${formData.id}/`, formData);
-        } else {
-            res = await requestUtil.post('role/', formData);
-        }
-
-        if (res.status === (isEdit.value ? 200 : 201)) {
-            ElMessage.success(`角色${isEdit.value ? '更新' : '添加'}成功！`);
-            addOrEditDialogVisible.value = false;
-            initRoleList();
-        } else {
-            ElMessage.error(res.data?.errorInfo || '操作失败');
-        }
-    } catch (e) {
-        const errorHandler = {
-            400: '请求参数错误',
-            401: '未授权，请重新登录',
-            404: '资源未找到',
-            500: '服务器内部错误'
-        };
-        ElMessage.error(errorHandler[e.response?.status] || '操作失败');
-        console.error("请求失败:", e);
+  try {
+    let res
+    if (!formData.remark) formData.remark = null
+    if (isEdit.value) {
+      res = await requestUtil.put(`role/${formData.id}/`, formData)
+    } else {
+      res = await requestUtil.post('role/', formData)
     }
-};
+
+    if ([200, 201].includes(res.status)) {
+      ElMessage.success(`角色${isEdit.value ? '更新' : '添加'}成功！`)
+      dialogVisible.value = false
+      initRoleList()
+    } else {
+      ElMessage.error(res.data?.errorInfo || '操作失败')
+    }
+  } catch (e) {
+    const errorHandler = {
+      400: '请求参数错误',
+      401: '未授权，请重新登录',
+      404: '资源未找到',
+      500: '服务器内部错误'
+    }
+    ElMessage.error(errorHandler[e.response?.status] || '操作失败')
+    console.error("请求失败:", e)
+  }
+}
 
 const menuDialog = ref(null)
 
@@ -266,8 +260,9 @@ const menuDialog = ref(null)
 const handleMenuDialogValue = (roleId) => {
     menuDialog.value.openMenuDialog(roleId)
 }
-
-
+const handleMenuUpdated = (newMenuIds) => {
+  initRoleList()
+}
 
 // 初始化加载角色列表
 initRoleList();
@@ -279,9 +274,9 @@ initRoleList();
 
 
 .app-container {
-  height: calc(100vh - 84px);
-  display: flex;
-  flex-direction: column;
+    height: calc(100vh - 84px);
+    display: flex;
+    flex-direction: column;
 }
 
 .table-wrapper {
@@ -291,12 +286,12 @@ initRoleList();
     background: #fff;
     border: 1px solid #ebeef5;
     overflow: hidden;
-    
+
     .table-scroll-container {
         flex: 1;
         overflow-y: auto;
     }
-    
+
     .pagination-container {
         padding: 10px 20px;
         border-top: 1px solid #ebeef5;
@@ -306,6 +301,7 @@ initRoleList();
         flex-shrink: 0; // 防止分页被挤压
     }
 }
+
 .menu-tags {
     .tag-item {
         @include text-ellipsis; // 使用 mixin

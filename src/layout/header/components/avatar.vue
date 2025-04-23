@@ -23,6 +23,7 @@ import { ArrowDown } from '@element-plus/icons-vue'
 import requestUtil, {getServerUrl} from '@/utils/request';
 import store from '@/store'
 import router from '@/router'
+
 const currentUser = JSON.parse(sessionStorage.getItem('currentUser'))
 const squareUrl = getServerUrl() + 'media/userAvatar/' + currentUser.avatar
 

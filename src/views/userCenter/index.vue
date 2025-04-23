@@ -46,10 +46,10 @@
                     </template>
                     <el-tabs v-model="activeTab">
                         <el-tab-pane label="基本资料" name="userinfo">
-                            <userInfo :user="currentUser"/>
+                            <userInfo :user="currentUser" @user-updated="handleUserUpdated" />
                         </el-tab-pane>
                         <el-tab-pane label="修改密码" name="resetPwd">
-                            <resetPwd :user="currentUser"/>
+                            <resetPwd :user="currentUser" @user-updated="handleUserUpdated" />
                         </el-tab-pane>
                     </el-tabs>
                 </el-card>
@@ -59,13 +59,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 import avatar from './components/avatar.vue'
 import userInfo from './components/userInfo.vue'
 import resetPwd from './components/resetPwd.vue'
 
-const currentUser = JSON.parse(sessionStorage.getItem('currentUser'))
+// 改为响应式引用
+const currentUser = ref({})
 const activeTab = ref('userinfo')
+
+// 自动同步sessionStorage变化
+watchEffect(() => {
+  const sessionData = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  if (sessionData.id) {
+    currentUser.value = sessionData
+  }
+})
+
+
+
+// 处理用户信息更新
+const handleUserUpdated = (newUserData) => {
+  // 更新本地响应式数据
+  currentUser.value = { ...currentUser.value, ...newUserData }
+  
+  // 同步到sessionStorage
+  sessionStorage.setItem('currentUser', JSON.stringify(currentUser.value))
+}
 </script>
 
 <style lang="scss" scoped>

@@ -27,7 +27,7 @@ const treeProps = {
   label: 'name',
   children: 'children'
 }
-
+const emit = defineEmits(['menu-updated'])
 
 // 修正后的打开对话框方法
 const openMenuDialog = async (roleId) => {
@@ -64,8 +64,8 @@ const handleConfirm = async () => {
         name: menuMap.value.get(id) || '未知菜单'
       }))
       ElMessage.success('菜单分配成功')
-      window.location.reload()
       dialogVisible.value = false
+      emit('menu-updated')
     }
   } catch (e) {
     console.error('分配菜单失败:', e)

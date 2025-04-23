@@ -5,7 +5,7 @@
                 <el-input placeholder="请输入用户名..." v-model="queryForm.query" clearable></el-input>
             </el-col>
             <el-button type="primary" :icon="Search" @click="initUserList">搜索</el-button>
-            <el-button type="success" :icon="DocumentAdd" @click="openAddDialog">添加用户</el-button>
+            <el-button type="success" :icon="DocumentAdd" @click="openDialog('add')">添加用户</el-button>
             <el-popconfirm title="您确定批量删除这些记录吗？" @confirm="handleDelete">
                 <template #reference>
                     <el-button type="danger" :disabled="selectedUserIds.length === 0" :icon="Delete">批量删除</el-button>
@@ -58,7 +58,7 @@
                             </el-popconfirm>
 
                             <el-button type="primary" v-if="scope.row.username != 'happYness7'" :icon="Edit"
-                                @click="openEditDialog(scope.row)"></el-button>
+                                @click="openDialog('edit', scope.row)"></el-button>
                             <el-popconfirm v-if="scope.row.username != 'happYness7'" title="您确定要删除这条记录吗？"
                                 @confirm="handleDeleteUser(scope.row.id)">
                                 <template #reference>
@@ -76,77 +76,69 @@
                     @size-change="handleSizeChange" @current-change="handleCurrentChange" />
             </div>
         </div>
-        <Dialog :visible="addOrEditDialogVisible" :is-edit="isEdit" :model-value="currentFormData"
-            @update:visible="addOrEditDialogVisible = $event" @confirm="handleFormConfirm" />
-        <RoleDialog ref="roleDialog" />
-
+        <RoleDialog ref="roleDialog" @role-assigned="handleRoleAssigned"/>
+        <BaseDialog :visible="dialogVisible" :title="currentDialogTitle" :form-items="USER_CONFIG.formItems"
+            :rules="USER_CONFIG.rules" :initial-data="currentFormData" @update:visible="val => dialogVisible = val"
+            @confirm="handleFormConfirm" />
     </div>
 </template>
 
 <script setup>
-import Dialog from './components/dialog.vue'
 import RoleDialog from './components/roleDialog.vue'
 import { ref } from 'vue'
 import requestUtil, { getServerUrl } from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import { Search, Delete, DocumentAdd, Edit, Tools, RefreshRight } from '@element-plus/icons-vue'
+import BaseDialog from '@/components/dialog/BaseDialog.vue'
+import { USER_CONFIG } from '@/config/dialogConfig'
 
+const handleRoleAssigned = () => {
+  initUserList(); // 重新获取用户列表
+};
 
-const addOrEditDialogVisible = ref(false)
 const isEdit = ref(false)
+const dialogVisible = ref(false)
+const currentDialogTitle = ref('')
 const currentFormData = ref({})
 
-
-
-// 打开添加对话框
-const openAddDialog = () => {
-    isEdit.value = false
-    currentFormData.value = {
-        username: '',
-        password: '123456',
-        email: '',
-        phonenumber: '',
-        status: 0,
-        remark: ''
-    }
-    addOrEditDialogVisible.value = true
-}
-
-// 打开编辑对话框
-const openEditDialog = (row) => {
-    isEdit.value = true
-    currentFormData.value = { ...row }
-    addOrEditDialogVisible.value = true
+// 打开对话框方法
+const openDialog = (type, row) => {
+    isEdit.value = type === 'edit'
+    currentDialogTitle.value = isEdit.value ? '编辑用户' : '添加用户'
+    currentFormData.value = isEdit.value ?
+        { ...row } :
+        {
+            username: '',
+            password: '123456',
+            email: '',
+            phonenumber: '',
+            status: 0,
+            remark: ''
+        }
+    dialogVisible.value = true
 }
 
 // 提交表单
 const handleFormConfirm = async (formData) => {
     try {
-        if (!formData.remark) {
-            formData.remark = null; // 设置为 null
-        }
-        let res;
+        // 清空备注字段空值
+        if (!formData.remark) formData.remark = null
+
+        let res
         if (isEdit.value) {
-            // 编辑用户
-            res = await requestUtil.put(`user/${formData.id}/`, formData);
-            if (res.status === 200) {
-                ElMessage.success("用户更新成功");
-                addOrEditDialogVisible.value = false; // 成功时关闭对话框
-            } else {
-                ElMessage.error(res.data.errorInfo || '更新失败');
-            }
+            res = await requestUtil.put(`user/${formData.id}/`, formData)
         } else {
-            // 添加用户
-            res = await requestUtil.post('user/', formData);
-            if (res.status === 201) {
-                ElMessage.success("用户添加成功");
-                addOrEditDialogVisible.value = false; // 成功时关闭对话框
-            } else {
-                ElMessage.error(res.data.errorInfo || '添加失败');
-            }
+            res = await requestUtil.post('user/', formData)
         }
-        // 刷新用户列表
-        initUserList();
+
+        // 统一处理成功状态
+        if ([200, 201].includes(res.status)) {
+            ElMessage.success(`用户${isEdit.value ? '更新' : '添加'}成功`)
+            dialogVisible.value = false  // 成功时关闭对话框
+            initUserList()
+        } else {
+            ElMessage.error(res.data?.errorInfo || '操作失败')
+        }
     } catch (e) {
         // 更详细的错误处理
         if (e.response) {
@@ -226,7 +218,7 @@ const handleSelectionChange = (selection) => {
 const handleDeleteUser = async (userId) => {
     try {
         const res = await requestUtil.del(`user/${userId}/`); // 调用单个删除路由
-        if (res.status === 204) {  // 直接检查状态码是否为 204
+        if (res.data.code === 200) {  // 直接检查状态码是否为 204
             ElMessage.success("用户删除成功！");
             initUserList(); // 刷新列表
         } else {

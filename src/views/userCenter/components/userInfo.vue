@@ -17,6 +17,7 @@ import { defineProps, ref } from 'vue'
 import requestUtil from "@/utils/request";
 import { ElMessage } from "element-plus";
 
+const emit = defineEmits(['user-updated'])
 const props = defineProps(
     {
         user: {
@@ -59,9 +60,7 @@ const handleSubmit = () => {
                 if (res.status === 200) {
                     ElMessage.success("用户信息更新成功！");
                     window.sessionStorage.setItem("currentUser", JSON.stringify(form.value));
-                    setTimeout(() => {
-                        window.location.reload(); // 延迟 1 秒刷新页面
-                    }, 1000);
+                    emit('user-updated', form.value)
                 } else {
                     ElMessage.error(res.data.errorInfo || '更新失败');
                 }

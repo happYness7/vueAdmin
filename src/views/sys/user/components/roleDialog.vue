@@ -25,7 +25,7 @@ const currentUserId = ref(null); // 新增：存储当前操作用户ID
 const roleForm = ref({
     selectedRoles: [],
 });
-
+const emit = defineEmits(['role-assigned']);
 // 获取所有角色列表
 const fetchRoleList = async () => {
     try {
@@ -70,7 +70,7 @@ const handleConfirm = async () => {
         if (res && res.status === 200) {
             ElMessage.success('角色分配成功');
             roleDialogVisible.value = false;
-            window.location.reload();
+            emit('role-assigned'); 
         } else {
             ElMessage.error('分配角色失败，请稍后重试');
         }

@@ -1,7 +1,7 @@
 <template>
     <div class="app-container">
         <el-row class="header">
-            <el-button type="success" :icon="DocumentAdd" @click="handleDialogValue()">新增</el-button>
+            <el-button type="success" :icon="DocumentAdd" @click="openDialog('add')">新增</el-button>
         </el-row>
 
         <div class="table-container">
@@ -31,7 +31,7 @@
                 <el-table-column prop="remark" label="备注" align="center" width="120" />
                 <el-table-column prop="action" label="操作" width="300" fixed="right" align="center">
                     <template #default="scope">
-                        <el-button type="primary" :icon="Edit" @click="handleDialogValue(scope.row.id)" />
+                        <el-button type="primary" :icon="Edit" @click="openDialog('edit', scope.row)" />
                         <el-popconfirm title="您确定要删除这条记录吗？" @confirm="handleDelete(scope.row.id)">
                             <template #reference>
                                 <el-button type="danger" :icon="Delete" />
@@ -42,8 +42,8 @@
             </el-table>
         </div>
 
-        <Dialog :visible="addOrEditDialogVisible" :is-edit="isEdit" :model-value="currentFormData"
-            :menu-options="tableData" @update:visible="val => addOrEditDialogVisible = val"
+        <BaseDialog :visible="dialogVisible" :title="currentDialogTitle" :form-items="MENU_CONFIG.formItems"
+            :rules="MENU_CONFIG.rules" :initial-data="currentFormData" @update:visible="val => dialogVisible = val"
             @confirm="handleFormConfirm" />
     </div>
 </template>
@@ -53,7 +53,9 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, DocumentAdd, Edit } from '@element-plus/icons-vue'
 import requestUtil from '@/utils/request'
-import Dialog from './components/dialog'
+import BaseDialog from '@/components/dialog/BaseDialog.vue'
+import { MENU_CONFIG } from '@/config/dialogConfig'
+
 
 const tableData = ref([])
 
@@ -98,26 +100,24 @@ const handleDelete = async (id) => {
     }
 }
 
-const addOrEditDialogVisible = ref(false)
-const isEdit = ref(false)
+// 对话框状态
+const dialogVisible = ref(false)
+const currentDialogTitle = ref('')
 const currentFormData = ref({})
-const findMenuRecursive = (menus, id) => {
-    for (const menu of menus) {
-        if (menu.id === id) return menu;
-        if (menu.children) {
-            const found = findMenuRecursive(menu.children, id);
-            if (found) return found;
-        }
-    }
-    return null;
-}; const handleDialogValue = (id) => {
-    if (id) {
-        const menu = findMenuRecursive(tableData.value, id); // 替换原有查找逻辑
-        currentFormData.value = { ...menu };
-        isEdit.value = true;
-    } else {
-        currentFormData.value = {
-            parent: 0,
+const isEdit = ref(false)
+
+// 打开对话框方法
+const openDialog = (type, row) => {
+    isEdit.value = type === 'edit'
+    currentDialogTitle.value = isEdit.value ? '编辑菜单' : '添加菜单'
+
+    currentFormData.value = isEdit.value ?
+        {
+            ...row,
+            parent: row.parent || 0 // 关键修复点
+        } :
+        {
+            parent_id: 0,
             menu_type: 'M',
             name: '',
             icon: '',
@@ -127,56 +127,59 @@ const findMenuRecursive = (menus, id) => {
             order_num: 1,
             remark: ''
         }
-        isEdit.value = false
-    }
-    addOrEditDialogVisible.value = true
+
+    injectMenuOptions()
+    dialogVisible.value = true
+}
+const injectMenuOptions = () => {
+  const menuItem = MENU_CONFIG.formItems.find(i => i.prop === 'parent')
+  menuItem.options = generateMenuOptions(tableData.value)
 }
 
+const generateMenuOptions = (menus, level = 0) => {
+  return menus.reduce((acc, menu) => {
+    if (menu.menu_type !== 'M') return acc // 过滤非目录
+    const node = {
+      value: menu.id,
+      label: '　'.repeat(level) + menu.name,
+      children: generateMenuOptions(menu.children || [], level + 1)
+    }
+    return [...acc, node]
+  }, [
+    { value: 0, label: '根目录' } // 根选项始终作为第一个
+  ])
+}
+// 表单提交处理
 const handleFormConfirm = async (formData) => {
     try {
-        if (!formData.remark) {
-            formData.remark = null
-        }
-        if (!formData.icon) {
-            formData.icon = null
-        }
-        if (!formData.component) {
-            formData.component = null
-        }
-        if (!formData.perms) {
-            formData.perms = null
-        }
-        let res
-        if (isEdit.value) {
-            res = await requestUtil.put(`menu/${formData.id}/`, formData)
-        } else {
-            res = await requestUtil.post('menu/', formData)
-        }
-        console.log(res)
-        console.log(formData)
+        const cleanedData = Object.fromEntries(
+            Object.entries(formData)
+                .filter(([_, v]) => v !== null && v !== '')
+        )
 
-        if (res.status === (isEdit.value ? 200 : 201)) {
+        const res = isEdit.value ?
+            await requestUtil.put(`menu/${cleanedData.id}/`, cleanedData) :
+            await requestUtil.post('menu/', cleanedData)
+
+        if ([200, 201].includes(res.status)) {
             ElMessage.success(`菜单${isEdit.value ? '更新' : '添加'}成功！`)
-            addOrEditDialogVisible.value = false
+            dialogVisible.value = false
             initMenuList()
-        } else {
-            ElMessage.error(res.data?.errorInfo || '操作失败')
         }
     } catch (e) {
-         // 优化后的错误处理逻辑
-         if (e.response?.data) {
-            const { code, errorInfo } = e.response.data
-            const errorMap = {
-                400: errorInfo || '请求参数错误',
-                404: '父菜单不存在',
-                500: '服务器内部错误'
-            }
-            ElMessage.error(errorMap[code] || errorInfo || '操作失败')
-        } else {
-            ElMessage.error("网络错误，请检查连接")
-        }
-        console.error("操作失败:", e)
+        handleFormError(e)
     }
+}
+
+// 统一错误处理
+const handleFormError = (error) => {
+    const errorMap = {
+        400: '请求参数错误',
+        404: '父菜单不存在',
+        500: '服务器内部错误'
+    }
+    ElMessage.error(errorMap[error.response?.status] || '操作失败')
+    console.error("操作失败:", error)
 }
 </script>
 

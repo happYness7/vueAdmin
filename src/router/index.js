@@ -48,7 +48,7 @@ const routes = [
         path: "/userCenter",
         name: "个人中心",
         component: () => import("../views/userCenter/index.vue"),
-        meta: { requiresAuth: true }
+        meta: { requiresAuth: true, title: "个人中心" }
       },
     ],
   },
