@@ -16,6 +16,13 @@
                     <template #prefix><svg-icon icon="password" /></template>
                 </el-input>
             </el-form-item>
+            <el-form-item prop="captcha">
+                <div class="captcha-container">
+                    <el-input v-model="loginForm.captcha" placeholder="验证码"
+                        style="width: 60%; margin-right: 10px;"></el-input>
+                    <img :src="captchaBase64" class="captcha-img" @click="getCaptcha" alt="验证码" />
+                </div>
+            </el-form-item>
 
             <el-checkbox v-model="loginForm.rememberMe" style="margin:0px 0px 25px 0px;">记住密码</el-checkbox>
             <el-form-item style="width:100%;">
@@ -48,29 +55,55 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 
 onMounted(() => {
-  if (route.query.expired) {
-    ElMessage.warning('会话已过期，请重新登录')
-  }
+    getCaptcha()
+    if (route.query.expired) {
+        ElMessage.warning('会话已过期，请重新登录')
+    }
 })
 
 const loginForm = ref({
     username: '',
     password: '',
+    captcha: '',
     rememberMe: false
 });
 
 const loginRules = {
     username: [{ required: true, trigger: "blur", message: "请输入您的账号" }],
-    password: [{ required: true, trigger: "blur", message: "请输入您的密码" }]
+    password: [{ required: true, trigger: "blur", message: "请输入您的密码" }],
+    captcha: [{ required: true, trigger: "blur", message: "请输入验证码" }]
+
 };
 
 const loginRef = ref(null);
+// 新增响应式数据
+const captchaBase64 = ref('')
+const captchaToken = ref('')
 
+// 获取验证码方法
+const getCaptcha = async () => {
+    try {
+        const result = await requestUtil.get('/user/captcha/') // 对应后端接口路径
+        if (result.data.code === 200) {
+            captchaBase64.value = result.data.base64str
+            captchaToken.value = result.data.captcha_token
+        } else {
+            ElMessage.error('获取验证码失败')
+        }
+    } catch (error) {
+        console.error("验证码请求失败:", error)
+        ElMessage.error("验证码加载失败")
+    }
+}
 const handleLogin = () => {
     loginRef.value.validate(async (valid) => {
         if (valid) {
             try {
-                let result = await requestUtil.post('/user/login/', loginForm.value); // 修改此处
+                const postData = {
+                    ...loginForm.value,
+                    captcha_token: captchaToken.value
+                }
+                let result = await requestUtil.post('/user/login/', postData); // 修改此处
                 console.log(result); // 打印完整响应
                 let data = result.data;
                 if (typeof data === 'string') {
@@ -99,15 +132,35 @@ const handleLogin = () => {
                     }
                     router.replace('/');
                 } else {
-                    ElMessage.error(data.info || '登录失败');
+                    const errorMessage = data.errorInfo ||
+                        data.info ||
+                        `登录失败（错误码：${data.code}）`;
+                    ElMessage.error(errorMessage);
+
+                    // 特定错误处理：验证码错误时自动刷新
+                    if (data.code === 400 && data.errorInfo?.toLowerCase()?.includes('captcha')) {
+                        await getCaptcha();
+                        loginForm.value.captcha = ''; // 清空输入框
+                    }
                 }
             } catch (error) {
-                console.error("登录请求失败:", error);
-                ElMessage.error("登录失败，请检查网络或联系管理员");
+                const errorMsg = error.response?.data?.errorInfo ||
+                    error.response?.data?.detail ||
+                    error.message ||
+                    "请求异常，请检查网络连接";
+                console.error(`登录请求失败: ${errorMsg}`, error);
+
+                ElMessage.error({
+                    message: `操作失败: ${errorMsg}`,
+                    duration: 3000
+                });
+
+                // 服务器错误时刷新验证码
+                if (error.response?.status >= 500) {
+                    await getCaptcha();
+                }
             }
-        } else {
-            ElMessage.warning('请正确填写账号密码信息');
-        } 
+        }
     });
 };
 
@@ -169,22 +222,6 @@ a {
 
 }
 
-.login-tip {
-    font-size: 13px;
-    text-align: center;
-    color: #bfbfbf;
-}
-
-.login-code {
-    width: 33%;
-    height: 40px;
-    float: right;
-
-    img {
-        cursor: pointer;
-        vertical-align: middle;
-    }
-}
 
 .el-login-footer {
     height: 40px;
@@ -199,8 +236,15 @@ a {
     letter-spacing: 1px;
 }
 
-.login-code-img {
+.captcha-container {
+    display: flex;
+    align-items: center;
+}
+
+.captcha-img {
     height: 40px;
-    padding-left: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
 }
 </style>
