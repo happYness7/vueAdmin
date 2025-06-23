@@ -2,7 +2,7 @@
 import axios from 'axios';
 import store from '@/store'
 
-let baseUrl="http://127.0.0.1:8000/";
+let baseUrl="http://127.0.0.1:8000/api/";
 // 创建axios实例
 const httpService = axios.create({
     // url前缀-'http:xxx.xxx'
