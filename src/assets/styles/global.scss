@@ -1,0 +1,134 @@
+// 新增颜色映射
+$colors: (
+  'striped-light': #fafafa,
+  'striped-dark': #2d2d2d
+);
+// 浅色主题
+:root {
+  // 基础变量
+  --bg-color: #ffffff;
+  --text-color: #303133;
+  --border-color: #ebeef5;
+  
+  // 组件变量
+  --sidebar-bg: #2d3a4b;
+  --header-bg: #f5f5f5;
+  --card-bg: #ffffff;
+  --table-header-bg: #f8f9fa;
+}
+
+// 深色主题
+.dark {
+  // 基础变量
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --border-color: #434343;
+  
+  // 组件变量
+  --sidebar-bg: #0f172a;
+  --header-bg: #1e293b;
+  --card-bg: #2d2d2d;
+  --table-header-bg: #363636;
+
+  // Element组件适配
+  --el-bg-color: var(--bg-color);
+  --el-text-color-primary: #ffffff; // 覆盖Element默认文字颜色
+  --el-text-color-regular: rgba(255,255,255,0.8); // 次级文字透明度
+  --el-border-color: var(--border-color);
+  --el-fill-color-blank: var(--card-bg);
+  
+
+  // 按钮
+  --el-button-hover-bg-color: rgba(255,255,255,0.1);
+  --el-button-active-bg-color: rgba(255,255,255,0.2);
+  
+  // 输入框
+  --el-input-bg-color: var(--card-bg);
+  --el-input-border-color: var(--border-color);
+
+}
+
+// 基础样式
+body {
+  background: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+// 侧边栏
+.sidebar-container {
+  background: var(--sidebar-bg) !important;
+  
+  .el-menu {
+    --el-menu-bg-color: var(--sidebar-bg);
+    --el-menu-text-color: rgba(255,255,255,0.7);
+    --el-menu-hover-bg-color: rgba(255,255,255,0.1);
+    
+    .el-menu-item.is-active {
+      color: #ffd04b !important;
+    }
+  }
+}
+
+// 头部
+.navbar {
+  background: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color);
+  
+  .el-icon {
+    color: var(--text-color);
+  }
+}
+
+// 表格
+.el-table {
+  --el-table-header-bg-color: var(--table-header-bg);
+  --el-table-tr-bg-color: var(--bg-color);
+  --el-table-border-color: var(--border-color);
+}
+
+// 卡片
+.el-card {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  
+  &__header {
+    border-bottom-color: var(--border-color);
+  }
+}
+
+// 分页
+.el-pagination {
+  --el-pagination-button-bg-color: var(--card-bg);
+  --el-pagination-button-disabled-bg-color: var(--card-bg);
+}
+
+// 分页容器精准适配
+.el-pagination {
+  &__total,
+  &__jump,
+  &__sizes {
+    color: var(--text-color) !important;
+  }
+
+  &.is-background {
+    .btn-prev,
+    .btn-next,
+    .number:not(.active),
+    .more {
+      background: var(--card-bg) !important;
+      border-color: var(--border-color) !important;
+      color: var(--text-color) !important;
+      
+      &:hover {
+        background: var(--el-button-hover-bg-color) !important;
+      }
+    }
+
+    .active {
+      background: var(--theme-color) !important;
+      border-color: var(--theme-color) !important;
+    }
+  }
+}
+

@@ -130,7 +130,7 @@ const handleLogin = () => {
                         Cookies.remove('password');
                         Cookies.set('rememberMe', '', { expires: -1 })
                     }
-                    router.replace('/');
+                    router.replace('/admin/index');
                 } else {
                     const errorMessage = data.errorInfo ||
                         data.info ||
@@ -188,7 +188,7 @@ a {
     justify-content: center;
     align-items: center;
     height: 100%;
-    background-image: url("../assets/images/login-background.jpg");
+    background-image: url("@/assets/images/login-background.jpg");
     background-size: cover;
 }
 

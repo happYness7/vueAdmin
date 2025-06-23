@@ -14,7 +14,7 @@
         </el-row>
         <div class="table-wrapper">
             <div class="table-scroll-container">
-                <el-table :data="tableData" stripe style="width: 100%" @selection-change="handleSelectionChange">
+                <el-table :data="tableData" style="width: 100%" @selection-change="handleSelectionChange">
                     <el-table-column type="selection" width="55" />
                     <el-table-column prop="name" label="角色名称" width="150" align="center" />
                     <el-table-column prop="code" label="权限字符串" width="150" align="center" />
@@ -283,7 +283,7 @@ initRoleList();
     display: flex;
     flex-direction: column;
     height: 750px; // 你要固定住表格区域大小，比如 600px，看你想要多高
-    background: #fff;
+    background: var(--card-bg) !important;
     border: 1px solid #ebeef5;
     overflow: hidden;
 
@@ -295,7 +295,8 @@ initRoleList();
     .pagination-container {
         padding: 10px 20px;
         border-top: 1px solid #ebeef5;
-        background: #fff;
+        background: var(--card-bg) !important;
+        border-color: var(--border-color) !important;
         display: flex;
         justify-content: flex-end;
         flex-shrink: 0; // 防止分页被挤压
@@ -320,14 +321,6 @@ initRoleList();
     box-sizing: border-box;
 }
 
-::v-deep th.el-table__cell {
-    word-break: break-word;
-    background-color: #f8f8f9 !important;
-    color: #515a6e;
-    height: 40px;
-    font-size: 13px;
-
-}
 
 .el-tag--small {
     margin-left: 5px;

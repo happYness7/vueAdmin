@@ -14,11 +14,11 @@
         </el-row>
         <div class="table-wrapper">
             <div class="table-scroll-container">
-                <el-table :data="tableData" stripe style="width: 100%" @selection-change="handleSelectionChange">
+                <el-table :data="tableData" style="width: 100%" @selection-change="handleSelectionChange">
                     <el-table-column type="selection" width="55" />
                     <el-table-column prop="avatar" label="头像" width="80" align="center">
                         <template v-slot="scope">
-                            <img :src="getServerUrl() + 'media/userAvatar/' + scope.row.avatar" width="50"
+                            <img :src="scope.row.avatar" width="50"
                                 height="50" />
                         </template>
                     </el-table-column>
@@ -27,8 +27,7 @@
                         <template v-slot="scope">
                             <div class="role-tags">
                                 <el-tag size="small" type="warning" v-for="item in scope.row.roleList" class="tag-item">
-                                    {{
-                                        item.name }}</el-tag>
+                                    {{item.name }}</el-tag>
                             </div>
                         </template>
                     </el-table-column>
@@ -76,7 +75,7 @@
                     @size-change="handleSizeChange" @current-change="handleCurrentChange" />
             </div>
         </div>
-        <RoleDialog ref="roleDialog" @role-assigned="handleRoleAssigned"/>
+        <RoleDialog ref="roleDialog" @role-assigned="handleRoleAssigned" />
         <BaseDialog :visible="dialogVisible" :title="currentDialogTitle" :form-items="USER_CONFIG.formItems"
             :rules="USER_CONFIG.rules" :initial-data="currentFormData" @update:visible="val => dialogVisible = val"
             @confirm="handleFormConfirm" />
@@ -92,8 +91,9 @@ import { Search, Delete, DocumentAdd, Edit, Tools, RefreshRight } from '@element
 import BaseDialog from '@/components/dialog/BaseDialog.vue'
 import { USER_CONFIG } from '@/config/dialogConfig'
 
+
 const handleRoleAssigned = () => {
-  initUserList(); // 重新获取用户列表
+    initUserList(); // 重新获取用户列表
 };
 
 const isEdit = ref(false)
@@ -183,7 +183,7 @@ const initUserList = async () => {
             tableData.value = res.data.userList;
             total.value = res.data.total;
         } else {
-            ElMessage.error(res.data.errorInfo || '获取用户列表失败');
+            ElMessage.error(res.response.errorInfo || '获取用户列表失败');
         }
     } catch (e) {
         if (e.response) {
@@ -249,7 +249,7 @@ const handleDelete = async () => {
             ElMessage.success("批量删除成功！");
             initUserList(); // 刷新列表
         } else {
-            ElMessage.error(res.data.errorInfo || '批量删除失败');
+            ElMessage.error(res.response.errorInfo || '批量删除失败');
         }
     } catch (error) {
         ElMessage.error("批量删除失败，请检查网络或联系管理员");
@@ -303,7 +303,6 @@ const handleResetPassword = async (userId) => {
 
 const statusChangeHandle = async (row) => {
     let res = await requestUtil.patch(`user/${row.id}/change-status/`, { id: row.id, status: row.status });
-    console.log(res)
     if (res.data.code == 200) {
         ElMessage({
             type: 'success',
@@ -334,7 +333,7 @@ initUserList()
     display: flex;
     flex-direction: column;
     height: 750px; // 你要固定住表格区域大小，比如 600px，看你想要多高
-    background: #fff;
+    background: var(--card-bg) !important;
     border: 1px solid #ebeef5;
     overflow: hidden;
 
@@ -346,7 +345,8 @@ initUserList()
     .pagination-container {
         padding: 10px 20px;
         border-top: 1px solid #ebeef5;
-        background: #fff;
+        background: var(--card-bg) !important;
+        border-color: var(--border-color) !important;
         display: flex;
         justify-content: flex-end;
         flex-shrink: 0; // 防止分页被挤压
@@ -371,14 +371,6 @@ initUserList()
     box-sizing: border-box;
 }
 
-::v-deep th.el-table__cell {
-    word-break: break-word;
-    background-color: #f8f8f9 !important;
-    color: #515a6e;
-    height: 40px;
-    font-size: 13px;
-
-}
 
 .el-tag--small {
     margin-left: 5px;

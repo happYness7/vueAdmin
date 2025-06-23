@@ -1,7 +1,6 @@
 <template>
     <el-form ref="formRef" :model="form" label-width="100px" style="text-align: center;padding-bottom:10px">
-        <el-upload name="avatar" :headers="headers" class="avatar-uploader"
-            :action="getServerUrl() + 'user/upload-image/'" :show-file-list="false" :on-success="handleAvatarSuccess"
+        <el-upload class="avatar-uploader" :show-file-list="false" :http-request="handleAvatarUpload"
             :before-upload="beforeAvatarUpload">
             <img v-if="imageUrl" :src="imageUrl" class="avatar" />
             <el-icon v-else class="avatar-uploader-icon">
@@ -15,10 +14,10 @@
 </template>
 <script setup>
 import { defineProps, ref } from "vue";
-import requestUtil, { getServerUrl } from "@/utils/request";
+import requestUtil from "@/utils/request";
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-
+import { uploadImage } from '@/utils/upload'
 
 const props = defineProps(
     {
@@ -31,10 +30,6 @@ const props = defineProps(
     }
 )
 
-const headers = ref({
-    Authorization: window.sessionStorage.getItem('token')
-})
-
 const form = ref({
     id: -1,
     avatar: ''
@@ -45,42 +40,32 @@ const formRef = ref(null)
 const imageUrl = ref("")
 
 form.value = props.user;
-imageUrl.value = getServerUrl() + 'media/userAvatar/' + form.value.avatar
+imageUrl.value = form.value.avatar
 
-const handleAvatarSuccess = (res) => {
-  imageUrl.value = getServerUrl() + 'media/userAvatar/' + res.title;
-  form.value.avatar = res.title;
-
-  // 更新 sessionStorage 中的用户信息
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser')) || {};
-  currentUser.avatar = res.title;
-  sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-};
-
-
-const beforeAvatarUpload = (file) => {
-    const isJPG = file.type === 'image/jpeg'
-    const isLt2M = file.size / 1024 / 1024 < 2
-
-    if (!isJPG) {
-        ElMessage.error('图片必须是jpg格式')
+const handleAvatarUpload = async (options) => {
+    const { success, url } = await uploadImage(options.file, 'avatar')
+    if (success) {
+        imageUrl.value = url;
+        form.value.avatar = url;
     }
-    if (!isLt2M) {
-        ElMessage.error('图片大小不能超过2M!')
-    }
-    return isJPG && isLt2M
+}
+
+const beforeAvatarUpload = () => {
+    return true // 验证逻辑已移至uploadImage函数中
 }
 
 const handleConfirm = async () => {
-
     let result = await requestUtil.post("user/update-avatar/", form.value);
     let data = result.data;
     if (data.code == 200) {
+        // 更新 sessionStorage 中的用户信息
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser')) || {};
+        currentUser.avatar = form.value.avatar;
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         ElMessage.success("执行成功！")
     } else {
         ElMessage.error(data.errorInfo);
     }
-
 }
 
 

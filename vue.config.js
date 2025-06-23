@@ -9,6 +9,7 @@ function resolve(dir) {
 
 
 module.exports = {
+  publicPath: '/', // 确保 publicPath 为根路径
   lintOnSave: false,
   configureWebpack: {
     plugins: [

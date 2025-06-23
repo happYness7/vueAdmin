@@ -8,12 +8,24 @@
             :is="componentMap[item.type]"
             v-model="formModel[item.prop]"
             v-bind="item.componentProps"
+            :auto-upload="false"
+            :on-change="item.type === 'upload' ? (uploadFile) => handleUploadSuccess(uploadFile.raw, item.prop) : undefined"
+            :before-upload="item.type === 'upload' ? beforeUpload : undefined"
           >
+            <!-- 上传组件的提示信息 -->
+            <template v-if="item.type === 'upload' && item.componentProps?.tip">
+              <div class="upload-tip">{{ item.componentProps.tip }}</div>
+            </template>
+            <!-- 上传组件的预览 -->
+            <template v-if="item.type === 'upload'">
+              <img v-if="formModel[item.prop]" :src="formModel[item.prop]" class="upload-preview" />
+              <el-icon v-else class="upload-icon"><Plus /></el-icon>
+            </template>
             <!-- 处理选项型组件 -->
-            <template v-if="item.options">
+             <template v-if="getOptions(item).length">
               <component 
                 :is="item.type === 'radio-group' ? ElRadio : ElOption"
-                v-for="opt in item.options"
+                v-for="opt in getOptions(item)"
                 :key="opt.value"
                 :label="opt.label"
                 :value="opt.value"
@@ -39,9 +51,18 @@ import {
   ElRadioGroup,
   ElOption,
   ElSelect,
-  ElInputNumber
+  ElInputNumber,
+  ElSwitch,
+  ElUpload,
 } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { uploadImage } from '@/utils/upload'
 
+const getOptions = (item) => {
+  // 优先使用 componentProps 中的选项，其次使用根级 options
+  return item.componentProps?.options || item.options || []
+}
 const props = defineProps({
   visible: Boolean,
   title: String,
@@ -64,7 +85,9 @@ const componentMap = {
   'radio-group': markRaw(ElRadioGroup),
   select: markRaw(ElSelect),
   textarea: markRaw(ElInput),
-  'input-number': markRaw(ElInputNumber)
+  'input-number': markRaw(ElInputNumber),
+  switch: markRaw(ElSwitch),
+  upload: markRaw(ElUpload),
 }
 
 
@@ -73,9 +96,38 @@ const visible = ref(props.visible)
 const formModel = ref({ ...props.initialData })
 
 // 监听器
-watch(() => props.visible, val => visible.value = val)
+watch(() => props.visible, val => {
+  visible.value = val
+  // 当对话框打开时，确保表单数据是最新的
+  if (val && props.initialData) {
+    formModel.value = { ...props.initialData }
+  }
+})
 watch(visible, val => emits('update:visible', val))
 watch(() => props.initialData, val => formModel.value = { ...val })
+
+// 处理上传
+const handleUploadSuccess = async (file, prop) => {
+  // 根据prop名称判断上传类型
+  let uploadType = 'photo'  // 默认类型
+  if (prop === 'article_cover') {
+    uploadType = 'article_cover'
+  } else if (prop === 'album_cover') {
+    uploadType = 'album_cover'
+  } else if (prop.includes('config')) {
+    uploadType = 'config'
+  }
+
+  const { success, url } = await uploadImage(file, uploadType)
+  if (success) {
+    formModel.value[prop] = url
+  }
+}
+
+// 上传前验证
+const beforeUpload = (file) => {
+  return true // 验证逻辑已移至uploadImage函数中
+}
 
 // 确认处理
 const handleConfirm = () => {
@@ -87,26 +139,41 @@ const handleConfirm = () => {
 :deep(.el-textarea__inner) {
   min-height: 80px !important;
 }
-:deep(.el-select-dropdown__item) {
-  &[data-level="0"] { padding-left: 32px; }
-  &[data-level="1"] { padding-left: 64px; }
-  &[data-level="2"] { padding-left: 96px; }
-  
-  &:before {
-    content: '';
-    position: absolute;
-    left: 16px;
-    width: 6px;
-    height: 6px;
-    background: #409eff;
-    border-radius: 50%;
-  }
-  
-  &[data-level="-1"] {
-    padding-left: 16px;
-    font-weight: 600;
-    &:before { display: none; }
-  }
+
+/* 上传组件样式 */
+.upload-tip {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 5px;
+  line-height: 1.4;
 }
 
+.upload-preview {
+  width: 148px;
+  height: 148px;
+  display: block;
+  object-fit: cover;
+}
+
+:deep(.el-upload) {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 148px;
+  height: 148px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+:deep(.el-upload:hover) {
+  border-color: #409eff;
+}
+
+.upload-icon {
+  font-size: 28px;
+  color: #8c939d;
+}
 </style>
