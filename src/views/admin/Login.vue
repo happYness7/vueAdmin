@@ -118,18 +118,35 @@ const handleLogin = () => {
                     window.sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                     window.sessionStorage.setItem('menuList', JSON.stringify(data.menuList));
                     if (loginForm.value.rememberMe) {
-                        Cookies.set('username', loginForm.value.username, { expires: 30 });
-                        Cookies.set('password', encrypt(loginForm.value.password), {
-                            expires: 30,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'Strict'
-                        })
-                        Cookies.set('rememberMe', loginForm.value.rememberMe.toString(), { expires: 30 })
-                    } else {
-                        Cookies.remove('username');
-                        Cookies.remove('password');
-                        Cookies.set('rememberMe', '', { expires: -1 })
-                    }
+  // 动态设置secure属性
+  const isSecure = window.location.protocol === 'https:';
+  
+  Cookies.set('username', loginForm.value.username, { 
+    expires: 30,
+    path: '/',
+    secure: isSecure, // 动态判断协议
+    sameSite: 'Lax' // 更宽松的设置
+  });
+  
+  Cookies.set('password', encrypt(loginForm.value.password), {
+    expires: 30,
+    path: '/',
+    secure: isSecure,
+    sameSite: 'Lax'
+  });
+  
+  Cookies.set('rememberMe', loginForm.value.rememberMe.toString(), { 
+    expires: 30,
+    path: '/',
+    secure: isSecure,
+    sameSite: 'Lax'
+  });
+} else {
+  // 清除时也要指定相同path
+  Cookies.remove('username', { path: '/' });
+  Cookies.remove('password', { path: '/' });
+  Cookies.remove('rememberMe', { path: '/' });
+}
                     router.replace('/admin/index');
                 } else {
                     const errorMessage = data.errorInfo ||

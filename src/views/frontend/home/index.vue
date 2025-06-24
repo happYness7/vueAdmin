@@ -66,7 +66,8 @@ const fetchArticles = async () => {
     loading.value = true
     const params = {
         pageNum: currentPage.value,
-        pageSize: pageSize.value
+        pageSize: pageSize.value,
+        status: 1
     }
     try {
         const response = await requestUtil.get('/blog/articles/', params)
